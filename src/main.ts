@@ -3,86 +3,102 @@ import { fragmentShaderSource } from "./shader/fragment";
 import { vertexShaderSource } from "./shader/vertex";
 import "./style.css";
 
-const dstWidth = 3;
-const dstHeight = 2;
+const LENGTH = 6;
+
+const a = new Float32Array([1, 2, 3, 4, 5, 6]);
+const b = new Float32Array([3, 6, 9, 12, 15, 18]);
+const sumResults = new Float32Array(LENGTH);
+const differenceResults = new Float32Array(LENGTH);
+const productResults = new Float32Array(LENGTH);
 
 function main() {
   const engine = new Engine();
   const program = engine.createProgram(
     vertexShaderSource,
-    fragmentShaderSource
+    fragmentShaderSource,
+    ["sum", "difference", "product"]
   );
   if (!program) return;
 
   const gl = engine.gl;
-  const positionLoc = gl.getAttribLocation(program, "position");
-  const srcTexLoc = gl.getUniformLocation(program, "srcTex");
-
-  // setup a full canvas clip space quad
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW
-  );
+  const aLoc = gl.getAttribLocation(program, "a");
+  const bLoc = gl.getAttribLocation(program, "b");
 
   // Create a vertex array object (attribute state)
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
 
-  // setup our attributes to tell WebGL how to pull
-  // the data from the buffer above to the position attribute
-  gl.enableVertexAttribArray(positionLoc);
-  gl.vertexAttribPointer(
-    positionLoc,
-    2, // size (num components)
-    gl.FLOAT, // type of data in buffer
-    false, // normalize
-    0, // stride (0 = auto)
-    0 // offset
-  );
+  // put data in buffers
+  engine.makeBufferAndSetAttribute(a, aLoc);
+  engine.makeBufferAndSetAttribute(b, bLoc);
 
-  // create our source texture
-  const srcWidth = 3;
-  const srcHeight = 2;
-  const tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0, // mip level
-    gl.R8, // internal format
-    srcWidth,
-    srcHeight,
-    0, // border
-    gl.RED, // format
-    gl.UNSIGNED_BYTE, // type
-    new Uint8Array([1, 2, 3, 4, 5, 6])
-  );
+  // Create and fill out a transform feedback
+  const tf = gl.createTransformFeedback();
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
 
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // make buffers for output
+  const sumBuffer = engine.makeBuffer(sumResults);
+  const differenceBuffer = engine.makeBuffer(differenceResults);
+  const productBuffer = engine.makeBuffer(productResults);
+  // 4 is size of Flaot32
+
+  // bind the buffers to the transform feedback
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, sumBuffer);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, differenceBuffer);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, productBuffer);
+
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+  // buffer's we are writing to can not be bound else where
+  gl.bindBuffer(gl.ARRAY_BUFFER, null); // productBuffer was still bound to ARRAY_BUFFER so unbind it
+
+  // above this line is setup
+  // ---------------------------------
+  // below this line is "render" time
 
   gl.useProgram(program);
-  gl.uniform1i(srcTexLoc, 0); // tell the shader the src texture is on texture unit 0
 
-  gl.drawArrays(gl.TRIANGLES, 0, 6); // draw 2 triangles (6 vertices)
+  // bind our input attribute state for the a and b buffers
+  gl.bindVertexArray(vao);
 
-  // get the result
-  const results = new Uint8Array(dstWidth * dstHeight * 4);
-  gl.readPixels(0, 0, dstWidth, dstHeight, gl.RGBA, gl.UNSIGNED_BYTE, results);
+  // no need to call the fragment shader
+  gl.enable(gl.RASTERIZER_DISCARD);
 
-  // print the results
-  for (let i = 0; i < dstWidth * dstHeight; ++i) {
-    log(results[i * 4]);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
+  gl.beginTransformFeedback(gl.POINTS);
+  gl.drawArrays(gl.POINTS, 0, a.length);
+  gl.endTransformFeedback();
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+  // turn on using fragment shaders again
+  gl.disable(gl.RASTERIZER_DISCARD);
+
+  log(`a: ${a}`);
+  log(`b: ${b}`);
+
+  printResults(gl, sumResults, sumBuffer!, "sums");
+  printResults(gl, differenceResults, differenceBuffer!, "differences");
+  printResults(gl, productResults, productBuffer!, "products");
+
+  function printResults(
+    gl: WebGL2RenderingContext,
+    results: Float32Array,
+    buffer: WebGLBuffer,
+    label: string
+  ) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.getBufferSubData(
+      gl.ARRAY_BUFFER,
+      0, // byte offset into GPU buffer,
+      results
+    );
+    // print the results
+    log(`${label}: ${results}`);
   }
 
-  function log(num: number) {
+  function log(str: string) {
     const elem = document.createElement("pre");
-    elem.textContent = num.toString();
+    elem.textContent = str;
     document.body.appendChild(elem);
   }
 }
