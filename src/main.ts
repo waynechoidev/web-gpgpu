@@ -1,106 +1,149 @@
 import { Engine } from "./engine";
-import { fragmentShaderSource } from "./shader/fragment";
-import { vertexShaderSource } from "./shader/vertex";
+import { drawParticlesFS, drawParticlesVS } from "./shader/draw-particles";
+import { updatePositionFS, updatePositionVS } from "./shader/update-position";
 import "./style.css";
+import { createPoints } from "./utils";
 
-const LENGTH = 6;
-
-const a = new Float32Array([1, 2, 3, 4, 5, 6]);
-const b = new Float32Array([3, 6, 9, 12, 15, 18]);
-const sumResults = new Float32Array(LENGTH);
-const differenceResults = new Float32Array(LENGTH);
-const productResults = new Float32Array(LENGTH);
+const canvasWidth = 800;
+const canvasHeight = 600;
+const numParticles = 200;
 
 function main() {
-  const engine = new Engine();
-  const program = engine.createProgram(
-    vertexShaderSource,
-    fragmentShaderSource,
-    ["sum", "difference", "product"]
+  const engine = new Engine(canvasWidth, canvasHeight);
+  const updatePositionProgram = engine.createProgram(
+    updatePositionVS,
+    updatePositionFS,
+    ["newPosition"]
   );
-  if (!program) return;
+  const drawParticlesProgram = engine.createProgram(
+    drawParticlesVS,
+    drawParticlesFS
+  );
+  if (!updatePositionProgram || !drawParticlesProgram) return;
 
   const gl = engine.gl;
-  const aLoc = gl.getAttribLocation(program, "a");
-  const bLoc = gl.getAttribLocation(program, "b");
+  const updatePositionPrgLocs = {
+    oldPosition: gl.getAttribLocation(updatePositionProgram, "oldPosition"),
+    velocity: gl.getAttribLocation(updatePositionProgram, "velocity"),
+    canvasDimensions: gl.getUniformLocation(
+      updatePositionProgram,
+      "canvasDimensions"
+    ),
+    deltaTime: gl.getUniformLocation(updatePositionProgram, "deltaTime"),
+  };
 
-  // Create a vertex array object (attribute state)
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
+  const drawParticlesProgLocs = {
+    position: gl.getAttribLocation(drawParticlesProgram, "position"),
+    matrix: gl.getUniformLocation(drawParticlesProgram, "matrix"),
+  };
 
-  // put data in buffers
-  engine.makeBufferAndSetAttribute(a, aLoc);
-  engine.makeBufferAndSetAttribute(b, bLoc);
+  const positions = new Float32Array(
+    createPoints(numParticles, [[canvasWidth], [canvasHeight]])
+  );
+  const velocities = new Float32Array(
+    createPoints(numParticles, [
+      [-300, 300],
+      [-300, 300],
+    ])
+  );
 
-  // Create and fill out a transform feedback
-  const tf = gl.createTransformFeedback();
-  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
+  const position1Buffer = engine.makeBuffer(positions, gl.DYNAMIC_DRAW);
+  const position2Buffer = engine.makeBuffer(positions, gl.DYNAMIC_DRAW);
+  const velocityBuffer = engine.makeBuffer(velocities, gl.STATIC_DRAW);
 
-  // make buffers for output
-  const sumBuffer = engine.makeBuffer(sumResults);
-  const differenceBuffer = engine.makeBuffer(differenceResults);
-  const productBuffer = engine.makeBuffer(productResults);
-  // 4 is size of Flaot32
+  const updatePositionVA1 = engine.makeVertexArray([
+    [position1Buffer!, updatePositionPrgLocs.oldPosition],
+    [velocityBuffer!, updatePositionPrgLocs.velocity],
+  ]);
+  const updatePositionVA2 = engine.makeVertexArray([
+    [position2Buffer!, updatePositionPrgLocs.oldPosition],
+    [velocityBuffer!, updatePositionPrgLocs.velocity],
+  ]);
 
-  // bind the buffers to the transform feedback
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, sumBuffer);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, differenceBuffer);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, productBuffer);
+  const drawVA1 = engine.makeVertexArray([
+    [position1Buffer!, drawParticlesProgLocs.position],
+  ]);
+  const drawVA2 = engine.makeVertexArray([
+    [position2Buffer!, drawParticlesProgLocs.position],
+  ]);
 
-  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+  const tf1 = engine.makeTransformFeedback(position1Buffer!);
+  const tf2 = engine.makeTransformFeedback(position2Buffer!);
 
-  // buffer's we are writing to can not be bound else where
-  gl.bindBuffer(gl.ARRAY_BUFFER, null); // productBuffer was still bound to ARRAY_BUFFER so unbind it
+  // unbind left over stuff
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
 
-  // above this line is setup
-  // ---------------------------------
-  // below this line is "render" time
+  let current = {
+    updateVA: updatePositionVA1, // read from position1
+    tf: tf2, // write to position2
+    drawVA: drawVA2, // draw with position2
+  };
+  let next = {
+    updateVA: updatePositionVA2, // read from position2
+    tf: tf1, // write to position1
+    drawVA: drawVA1, // draw with position1
+  };
 
-  gl.useProgram(program);
+  let then = 0;
 
-  // bind our input attribute state for the a and b buffers
-  gl.bindVertexArray(vao);
+  function render(time: number) {
+    // convert to seconds
+    time *= 0.001;
+    // Subtract the previous time from the current time
+    const deltaTime = time - then;
+    // Remember the current time for the next frame.
+    then = time;
 
-  // no need to call the fragment shader
-  gl.enable(gl.RASTERIZER_DISCARD);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
-  gl.beginTransformFeedback(gl.POINTS);
-  gl.drawArrays(gl.POINTS, 0, a.length);
-  gl.endTransformFeedback();
-  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-
-  // turn on using fragment shaders again
-  gl.disable(gl.RASTERIZER_DISCARD);
-
-  log(`a: ${a}`);
-  log(`b: ${b}`);
-
-  printResults(gl, sumResults, sumBuffer!, "sums");
-  printResults(gl, differenceResults, differenceBuffer!, "differences");
-  printResults(gl, productResults, productBuffer!, "products");
-
-  function printResults(
-    gl: WebGL2RenderingContext,
-    results: Float32Array,
-    buffer: WebGLBuffer,
-    label: string
-  ) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.getBufferSubData(
-      gl.ARRAY_BUFFER,
-      0, // byte offset into GPU buffer,
-      results
+    // compute the new positions
+    gl.useProgram(updatePositionProgram!);
+    gl.bindVertexArray(current.updateVA);
+    gl.uniform2f(
+      updatePositionPrgLocs.canvasDimensions,
+      gl.canvas.width,
+      gl.canvas.height
     );
-    // print the results
-    log(`${label}: ${results}`);
-  }
+    gl.uniform1f(updatePositionPrgLocs.deltaTime, deltaTime);
 
-  function log(str: string) {
-    const elem = document.createElement("pre");
-    elem.textContent = str;
-    document.body.appendChild(elem);
+    gl.enable(gl.RASTERIZER_DISCARD);
+
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, current.tf);
+    gl.beginTransformFeedback(gl.POINTS);
+    gl.drawArrays(gl.POINTS, 0, numParticles);
+    gl.endTransformFeedback();
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+    // turn on using fragment shaders again
+    gl.disable(gl.RASTERIZER_DISCARD);
+
+    // now draw the particles.
+    gl.useProgram(drawParticlesProgram!);
+    gl.bindVertexArray(current.drawVA);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.uniformMatrix4fv(
+      drawParticlesProgLocs.matrix,
+      false,
+      // m4.orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1))
+      [
+        0.0024999999441206455, 0, 0, 0, 0, 0.0033333334140479565, 0, 0, 0, 0,
+        -1, 0, -1, -1, 0, 1,
+      ]
+    );
+    gl.drawArrays(gl.POINTS, 0, numParticles);
+
+    // swap which buffer we will read from
+    // and which one we will write to
+    {
+      const temp = current;
+      current = next;
+      next = temp;
+    }
+
+    requestAnimationFrame(render);
   }
+  requestAnimationFrame(render);
 }
 
 main();
