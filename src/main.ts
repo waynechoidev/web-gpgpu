@@ -5,16 +5,18 @@ import { UpdatePosition } from "./program/update-position";
 import { DrawParticles } from "./program/draw-particles";
 
 const numParticles = 10000;
+const width = 800;
+const height = 600;
 
 function main() {
-  const engine = new Engine(800, 600);
+  const engine = new Engine(width, height);
   const gl = engine.gl;
 
   const updatePositionProgram = new UpdatePosition(gl);
   const drawParticlesProgram = new DrawParticles(gl);
 
   const positions = new Float32Array(
-    createPoints(numParticles, [[gl.canvas.width], [gl.canvas.height]])
+    createPoints(numParticles, [[width], [height]])
   );
   const velocities = new Float32Array(
     createPoints(numParticles, [
