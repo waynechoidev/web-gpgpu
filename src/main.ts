@@ -1,44 +1,20 @@
-import { Engine } from "./engine";
-import { drawParticlesFS, drawParticlesVS } from "./shader/draw-particles";
-import { updatePositionFS, updatePositionVS } from "./shader/update-position";
+import { Engine } from "./lib/engine";
 import "./style.css";
-import { createPoints } from "./utils";
+import { createPoints, orthographic, swapBuffers } from "./lib/utils";
+import { UpdatePosition } from "./program/update-position";
+import { DrawParticles } from "./program/draw-particles";
 
-const canvasWidth = 800;
-const canvasHeight = 600;
-const numParticles = 200;
+const numParticles = 10000;
 
 function main() {
-  const engine = new Engine(canvasWidth, canvasHeight);
-  const updatePositionProgram = engine.createProgram(
-    updatePositionVS,
-    updatePositionFS,
-    ["newPosition"]
-  );
-  const drawParticlesProgram = engine.createProgram(
-    drawParticlesVS,
-    drawParticlesFS
-  );
-  if (!updatePositionProgram || !drawParticlesProgram) return;
-
+  const engine = new Engine(800, 600);
   const gl = engine.gl;
-  const updatePositionPrgLocs = {
-    oldPosition: gl.getAttribLocation(updatePositionProgram, "oldPosition"),
-    velocity: gl.getAttribLocation(updatePositionProgram, "velocity"),
-    canvasDimensions: gl.getUniformLocation(
-      updatePositionProgram,
-      "canvasDimensions"
-    ),
-    deltaTime: gl.getUniformLocation(updatePositionProgram, "deltaTime"),
-  };
 
-  const drawParticlesProgLocs = {
-    position: gl.getAttribLocation(drawParticlesProgram, "position"),
-    matrix: gl.getUniformLocation(drawParticlesProgram, "matrix"),
-  };
+  const updatePositionProgram = new UpdatePosition(gl);
+  const drawParticlesProgram = new DrawParticles(gl);
 
   const positions = new Float32Array(
-    createPoints(numParticles, [[canvasWidth], [canvasHeight]])
+    createPoints(numParticles, [[gl.canvas.width], [gl.canvas.height]])
   );
   const velocities = new Float32Array(
     createPoints(numParticles, [
@@ -52,19 +28,21 @@ function main() {
   const velocityBuffer = engine.makeBuffer(velocities, gl.STATIC_DRAW);
 
   const updatePositionVA1 = engine.makeVertexArray([
-    [position1Buffer!, updatePositionPrgLocs.oldPosition],
-    [velocityBuffer!, updatePositionPrgLocs.velocity],
+    [position1Buffer!, updatePositionProgram.oldPosition],
+    [velocityBuffer!, updatePositionProgram.velocity],
   ]);
+
   const updatePositionVA2 = engine.makeVertexArray([
-    [position2Buffer!, updatePositionPrgLocs.oldPosition],
-    [velocityBuffer!, updatePositionPrgLocs.velocity],
+    [position2Buffer!, updatePositionProgram.oldPosition],
+    [velocityBuffer!, updatePositionProgram.velocity],
   ]);
 
   const drawVA1 = engine.makeVertexArray([
-    [position1Buffer!, drawParticlesProgLocs.position],
+    [position1Buffer!, drawParticlesProgram.position],
   ]);
+
   const drawVA2 = engine.makeVertexArray([
-    [position2Buffer!, drawParticlesProgLocs.position],
+    [position2Buffer!, drawParticlesProgram.position],
   ]);
 
   const tf1 = engine.makeTransformFeedback(position1Buffer!);
@@ -79,6 +57,7 @@ function main() {
     tf: tf2, // write to position2
     drawVA: drawVA2, // draw with position2
   };
+
   let next = {
     updateVA: updatePositionVA2, // read from position2
     tf: tf1, // write to position1
@@ -98,14 +77,14 @@ function main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // compute the new positions
-    gl.useProgram(updatePositionProgram!);
+    updatePositionProgram.use();
     gl.bindVertexArray(current.updateVA);
     gl.uniform2f(
-      updatePositionPrgLocs.canvasDimensions,
+      updatePositionProgram.canvasDimensions,
       gl.canvas.width,
       gl.canvas.height
     );
-    gl.uniform1f(updatePositionPrgLocs.deltaTime, deltaTime);
+    gl.uniform1f(updatePositionProgram.deltaTime, deltaTime);
 
     gl.enable(gl.RASTERIZER_DISCARD);
 
@@ -119,27 +98,19 @@ function main() {
     gl.disable(gl.RASTERIZER_DISCARD);
 
     // now draw the particles.
-    gl.useProgram(drawParticlesProgram!);
+    drawParticlesProgram.use();
     gl.bindVertexArray(current.drawVA);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.uniformMatrix4fv(
-      drawParticlesProgLocs.matrix,
+      drawParticlesProgram.matrix,
       false,
-      // m4.orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1))
-      [
-        0.0024999999441206455, 0, 0, 0, 0, 0.0033333334140479565, 0, 0, 0, 0,
-        -1, 0, -1, -1, 0, 1,
-      ]
+      orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1)
     );
     gl.drawArrays(gl.POINTS, 0, numParticles);
 
     // swap which buffer we will read from
     // and which one we will write to
-    {
-      const temp = current;
-      current = next;
-      next = temp;
-    }
+    swapBuffers(current, next);
 
     requestAnimationFrame(render);
   }
