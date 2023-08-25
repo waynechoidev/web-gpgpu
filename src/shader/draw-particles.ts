@@ -12,7 +12,19 @@ export const drawParticlesVS = `#version 300 es
 export const drawParticlesFS = `#version 300 es
   precision highp float;
   out vec4 outColor;
+   // Function to generate a random float between min and max
+  float random(float min, float max, float seed) {
+      return fract(sin(seed) * 43758.5453) * (max - min) + min;
+  }
+
   void main() {
-    outColor = vec4(1, 0, 0, 1);
+    // Generate a random color for each particle
+    vec3 randomColor = vec3(
+      random(0.0, 0.5, gl_FragCoord.x),
+      random(0.0, 0.5, gl_FragCoord.y),
+      random(0.0, 0.5, 0.0)  // Seed doesn't need to be based on coordinates
+    );
+
+    outColor = vec4(randomColor, 1.0);
   }
   `;

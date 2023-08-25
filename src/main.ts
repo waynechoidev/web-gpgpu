@@ -4,9 +4,9 @@ import { createPoints, orthographic, swapBuffers } from "./lib/utils";
 import { UpdatePosition } from "./program/update-position";
 import { DrawParticles } from "./program/draw-particles";
 
-const numParticles = 10000;
-const width = 800;
-const height = 600;
+const numParticles = 2000;
+const width = window.innerWidth;
+const height = window.innerHeight;
 
 function main() {
   const engine = new Engine(width, height);
