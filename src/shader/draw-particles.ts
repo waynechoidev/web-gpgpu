@@ -12,9 +12,10 @@ export const drawParticlesVS = `#version 300 es
 export const drawParticlesFS = `#version 300 es
   precision highp float;
   out vec4 outColor;
+  
    // Function to generate a random float between min and max
   float random(float min, float max, float seed) {
-      return fract(sin(seed) * 43758.5453) * (max - min) + min;
+      return fract(sin(seed)) * (max - min) + min;
   }
 
   void main() {

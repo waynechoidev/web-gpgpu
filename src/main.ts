@@ -4,22 +4,22 @@ import { createPoints, orthographic, swapBuffers } from "./lib/utils";
 import { UpdatePosition } from "./program/update-position";
 import { DrawParticles } from "./program/draw-particles";
 
-const numParticles = 2000;
-const width = window.innerWidth;
-const height = window.innerHeight;
+const NUM_OF_PARTICLES = 3000;
+const WIDTH = window.innerWidth;
+const HEIGHT = window.innerHeight;
 
 function main() {
-  const engine = new Engine(width, height);
+  const engine = new Engine(WIDTH, HEIGHT);
   const gl = engine.gl;
 
   const updatePositionProgram = new UpdatePosition(gl);
   const drawParticlesProgram = new DrawParticles(gl);
 
   const positions = new Float32Array(
-    createPoints(numParticles, [[width], [height]])
+    createPoints(NUM_OF_PARTICLES, [[WIDTH], [HEIGHT]])
   );
   const velocities = new Float32Array(
-    createPoints(numParticles, [
+    createPoints(NUM_OF_PARTICLES, [
       [-300, 300],
       [-300, 300],
     ])
@@ -92,7 +92,7 @@ function main() {
 
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, current.tf);
     gl.beginTransformFeedback(gl.POINTS);
-    gl.drawArrays(gl.POINTS, 0, numParticles);
+    gl.drawArrays(gl.POINTS, 0, NUM_OF_PARTICLES);
     gl.endTransformFeedback();
     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
 
@@ -108,7 +108,7 @@ function main() {
       false,
       orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1)
     );
-    gl.drawArrays(gl.POINTS, 0, numParticles);
+    gl.drawArrays(gl.POINTS, 0, NUM_OF_PARTICLES);
 
     // swap which buffer we will read from
     // and which one we will write to
