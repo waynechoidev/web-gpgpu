@@ -1,5 +1,5 @@
 import { Program } from "../lib/program";
-import { closestLineFS, closestLineVS } from "../shader/closest-line";
+import { closestLineFS, closestLineVS } from "../shader/compute";
 
 export class ClosestLine extends Program {
   private _point: number;

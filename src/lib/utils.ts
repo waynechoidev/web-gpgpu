@@ -7,10 +7,12 @@ export const rand = (min: number, max?: number) => {
 };
 
 export const createPoints = (num: number, ranges: number[][]) =>
-  new Array(num)
-    .fill(0)
-    .map((_) => ranges.map((range) => rand(range[0], range[1])))
-    .flat();
+  new Float32Array(
+    new Array(num)
+      .fill(0)
+      .map((_) => ranges.map((range) => rand(range[0], range[1])))
+      .flat()
+  );
 
 export const orthographic = (
   left: number,
@@ -20,7 +22,7 @@ export const orthographic = (
   near: number,
   far: number
 ) => {
-  return [
+  return new Float32Array([
     2 / (right - left),
     0,
     0,
@@ -38,7 +40,7 @@ export const orthographic = (
     (bottom + top) / (bottom - top),
     (near + far) / (near - far),
     1,
-  ];
+  ]);
 };
 
 export const swapBuffers = (buffer1: object, buffer2: object) => {
