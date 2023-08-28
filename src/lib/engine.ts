@@ -16,7 +16,7 @@ export class Engine {
     return this._gl;
   }
 
-  makeVertexArray(bufLocPairs: [WebGLBuffer, number][]) {
+  makeVertexArray(bufLocPairs: [WebGLBuffer, number][], numElements = 2) {
     const va = this._gl.createVertexArray();
     this._gl.bindVertexArray(va);
     for (const [buffer, loc] of bufLocPairs) {
@@ -24,7 +24,7 @@ export class Engine {
       this._gl.enableVertexAttribArray(loc);
       this._gl.vertexAttribPointer(
         loc, // attribute location
-        2, // number of elements
+        numElements, // number of elements
         this._gl.FLOAT, // type of data
         false, // normalize
         0, // stride (0 = auto)
