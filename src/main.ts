@@ -1,122 +1,69 @@
 import { Engine } from "./lib/engine";
 import "./style.css";
 import { createPoints, orthographic, swapBuffers } from "./lib/utils";
-import { UpdatePosition } from "./program/update-position";
-import { DrawParticles } from "./program/draw-particles";
+import { ClosestLine } from "./program/closest-line";
 
-const NUM_OF_PARTICLES = 3000;
 const WIDTH = window.innerWidth;
 const HEIGHT = window.innerHeight;
+const points = new Float32Array([100, 100, 200, 100]);
+const lines = new Float32Array([
+  25, 50, 25, 150, 90, 50, 90, 150, 125, 50, 125, 150, 185, 50, 185, 150, 225,
+  50, 225, 150,
+]);
+const numPoints = points.length / 2;
+const numLineSegments = lines.length / 2 / 2;
 
 function main() {
   const engine = new Engine(WIDTH, HEIGHT);
   const gl = engine.gl;
 
-  const updatePositionProgram = new UpdatePosition(gl);
-  const drawParticlesProgram = new DrawParticles(gl);
-
-  const positions = new Float32Array(
-    createPoints(NUM_OF_PARTICLES, [[WIDTH], [HEIGHT]])
+  const closestNdxBuffer = engine.makeBuffer(
+    new Float32Array(numPoints),
+    gl.STATIC_DRAW
   );
-  const velocities = new Float32Array(
-    createPoints(NUM_OF_PARTICLES, [
-      [-300, 300],
-      [-300, 300],
-    ])
-  );
+  const pointsBuffer = engine.makeBuffer(points, gl.DYNAMIC_DRAW);
 
-  const position1Buffer = engine.makeBuffer(positions, gl.DYNAMIC_DRAW);
-  const position2Buffer = engine.makeBuffer(positions, gl.DYNAMIC_DRAW);
-  const velocityBuffer = engine.makeBuffer(velocities, gl.STATIC_DRAW);
+  // const { tex: linesTex, dimensions: linesTexDimensions } =
+  engine.createDataTexture(lines, 2, gl.RG32F, gl.RG, gl.FLOAT);
 
-  const updatePositionVA1 = engine.makeVertexArray([
-    [position1Buffer!, updatePositionProgram.oldPosition],
-    [velocityBuffer!, updatePositionProgram.velocity],
+  const closestLinePrg = new ClosestLine(gl);
+
+  const closestLinesVA = engine.makeVertexArray([
+    [pointsBuffer!, closestLinePrg.point],
   ]);
 
-  const updatePositionVA2 = engine.makeVertexArray([
-    [position2Buffer!, updatePositionProgram.oldPosition],
-    [velocityBuffer!, updatePositionProgram.velocity],
-  ]);
+  const closestNdxTF = engine.makeTransformFeedback(closestNdxBuffer!);
 
-  const drawVA1 = engine.makeVertexArray([
-    [position1Buffer!, drawParticlesProgram.position],
-  ]);
+  // compute the closest lines
+  gl.bindVertexArray(closestLinesVA);
+  closestLinePrg.use();
+  gl.uniform1i(closestLinePrg.linesTex, 0);
+  gl.uniform1i(closestLinePrg.numLineSegments, numLineSegments);
 
-  const drawVA2 = engine.makeVertexArray([
-    [position2Buffer!, drawParticlesProgram.position],
-  ]);
+  // turn of using the fragment shader
+  gl.enable(gl.RASTERIZER_DISCARD);
 
-  const tf1 = engine.makeTransformFeedback(position1Buffer!);
-  const tf2 = engine.makeTransformFeedback(position2Buffer!);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, closestNdxTF);
+  gl.beginTransformFeedback(gl.POINTS);
+  gl.drawArrays(gl.POINTS, 0, numPoints);
+  gl.endTransformFeedback();
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
 
-  // unbind left over stuff
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
+  // turn on using fragment shaders again
+  gl.disable(gl.RASTERIZER_DISCARD);
 
-  let current = {
-    updateVA: updatePositionVA1, // read from position1
-    tf: tf2, // write to position2
-    drawVA: drawVA2, // draw with position2
-  };
-
-  let next = {
-    updateVA: updatePositionVA2, // read from position2
-    tf: tf1, // write to position1
-    drawVA: drawVA1, // draw with position1
-  };
-
-  let then = 0;
-
-  function render(time: number) {
-    // convert to seconds
-    time *= 0.001;
-    // Subtract the previous time from the current time
-    const deltaTime = time - then;
-    // Remember the current time for the next frame.
-    then = time;
-
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // compute the new positions
-    updatePositionProgram.use();
-    gl.bindVertexArray(current.updateVA);
-    gl.uniform2f(
-      updatePositionProgram.canvasDimensions,
-      gl.canvas.width,
-      gl.canvas.height
-    );
-    gl.uniform1f(updatePositionProgram.deltaTime, deltaTime);
-
-    gl.enable(gl.RASTERIZER_DISCARD);
-
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, current.tf);
-    gl.beginTransformFeedback(gl.POINTS);
-    gl.drawArrays(gl.POINTS, 0, NUM_OF_PARTICLES);
-    gl.endTransformFeedback();
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-
-    // turn on using fragment shaders again
-    gl.disable(gl.RASTERIZER_DISCARD);
-
-    // now draw the particles.
-    drawParticlesProgram.use();
-    gl.bindVertexArray(current.drawVA);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.uniformMatrix4fv(
-      drawParticlesProgram.matrix,
-      false,
-      orthographic(0, gl.canvas.width, 0, gl.canvas.height, -1, 1)
-    );
-    gl.drawArrays(gl.POINTS, 0, NUM_OF_PARTICLES);
-
-    // swap which buffer we will read from
-    // and which one we will write to
-    swapBuffers(current, next);
-
-    requestAnimationFrame(render);
+  {
+    const results = new Int32Array(numPoints);
+    gl.bindBuffer(gl.ARRAY_BUFFER, closestNdxBuffer);
+    gl.getBufferSubData(gl.ARRAY_BUFFER, 0, results);
+    log(results);
   }
-  requestAnimationFrame(render);
 }
 
 main();
+
+function log(results: Int32Array) {
+  const elem = document.createElement("pre");
+  elem.textContent = results.join(" ");
+  document.body.appendChild(elem);
+}

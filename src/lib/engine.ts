@@ -48,6 +48,44 @@ export class Engine {
     return buf;
   }
 
+  createDataTexture(
+    data: Float32Array,
+    numComponents: number,
+    internalFormat: number,
+    format: number,
+    type: number
+  ) {
+    const gl = this._gl;
+
+    const numElements = data.length / numComponents;
+
+    // compute a size that will hold all of our data
+    const width = Math.ceil(Math.sqrt(numElements));
+    const height = Math.ceil(numElements / width);
+
+    const bin = new Float32Array(width * height * numComponents);
+    bin.set(data);
+
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0, // mip level
+      internalFormat,
+      width,
+      height,
+      0, // border
+      format,
+      type,
+      bin
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return { tex, dimensions: [width, height] };
+  }
+
   private createWindow() {
     const gl = this._gl;
     this.resizeCanvasToDisplaySize(gl.canvas as HTMLCanvasElement);
