@@ -10,26 +10,54 @@ export class Engine {
     if (!this._gl) alert("Cannot use webgl2");
 
     this.createWindow();
+
+    const ext = this._gl.getExtension("EXT_color_buffer_float");
+    if (!ext) {
+      alert("need EXT_color_buffer_float");
+      return;
+    }
   }
 
   get gl() {
     return this._gl;
   }
 
-  makeVertexArray(bufLocPairs: [WebGLBuffer, number][], numElements = 2) {
+  makeVertexArray({
+    bufLocPairs,
+    numElements,
+    dataType = this._gl.FLOAT,
+    divisor = 0,
+  }: {
+    bufLocPairs: [WebGLBuffer, number][];
+    numElements: number;
+    dataType?: number;
+    divisor?: number;
+  }) {
     const va = this._gl.createVertexArray();
     this._gl.bindVertexArray(va);
     for (const [buffer, loc] of bufLocPairs) {
       this._gl.bindBuffer(this._gl.ARRAY_BUFFER, buffer);
       this._gl.enableVertexAttribArray(loc);
-      this._gl.vertexAttribPointer(
-        loc, // attribute location
-        numElements, // number of elements
-        this._gl.FLOAT, // type of data
-        false, // normalize
-        0, // stride (0 = auto)
-        0 // offset
-      );
+
+      if (dataType === this._gl.FLOAT)
+        this._gl.vertexAttribPointer(
+          loc, // attribute location
+          numElements, // number of elements
+          this._gl.FLOAT, // type of data
+          false, // normalize
+          0, // stride (0 = auto)
+          0 // offset
+        );
+      else if (dataType === this._gl.INT)
+        this._gl.vertexAttribIPointer(
+          loc, // attribute location
+          numElements, // number of elements
+          this._gl.INT, // type of data
+          0, // stride (0 = auto)
+          0 // offset
+        );
+
+      this._gl.vertexAttribDivisor(loc, divisor);
     }
     return va!;
   }
@@ -38,14 +66,14 @@ export class Engine {
     const tf = this._gl.createTransformFeedback();
     this._gl.bindTransformFeedback(this._gl.TRANSFORM_FEEDBACK, tf);
     this._gl.bindBufferBase(this._gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer);
-    return tf;
+    return tf!;
   }
 
   makeBuffer(sizeOrData: Float32Array, usage: number = this._gl.STATIC_DRAW) {
     const buf = this._gl.createBuffer();
     this._gl.bindBuffer(this._gl.ARRAY_BUFFER, buf);
     this._gl.bufferData(this._gl.ARRAY_BUFFER, sizeOrData, usage);
-    return buf;
+    return buf!;
   }
 
   createDataTexture(
@@ -66,7 +94,7 @@ export class Engine {
     const bin = new Float32Array(width * height * numComponents);
     bin.set(data);
 
-    const tex = gl.createTexture();
+    const tex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(
       gl.TEXTURE_2D,
@@ -98,7 +126,7 @@ export class Engine {
       tex,
       0
     );
-    return fb;
+    return fb!;
   }
 
   drawArraysWithTransformFeedback(

@@ -1,9 +1,10 @@
 import { Engine } from "./engine";
 
 export class Program {
-  protected _engine: Engine;
   private _program: WebGLProgram;
-  private _VA: WebGLVertexArrayObject[] = [];
+
+  protected _engine: Engine;
+  protected _gl: WebGL2RenderingContext;
 
   constructor(
     engine: Engine,
@@ -12,6 +13,7 @@ export class Program {
     varyings?: string[]
   ) {
     this._engine = engine;
+    this._gl = engine.gl;
     this._program = this.createProgram(
       vertexShaderSource,
       fragmentShaderSource,
@@ -19,23 +21,17 @@ export class Program {
     );
   }
 
-  get VA() {
-    return this._VA;
-  }
-  set VA(VAs: WebGLVertexArrayObject[]) {
-    this._VA = VAs;
-  }
-
-  addAttrib(name: string) {
+  // Protected Methods
+  protected addAttrib(name: string) {
     return this._engine.gl.getAttribLocation(this._program, name);
   }
 
-  addUniform(name: string) {
+  protected addUniform(name: string) {
     return this._engine.gl.getUniformLocation(this._program, name)!;
   }
 
-  use() {
-    this._engine.gl.useProgram(this._program);
+  protected useProgram() {
+    this._gl.useProgram(this._program);
   }
 
   // Private Methods

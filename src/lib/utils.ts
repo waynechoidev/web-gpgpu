@@ -48,3 +48,13 @@ export const swapBuffers = (buffer1: object, buffer2: object) => {
   Object.assign(buffer1, buffer2);
   Object.assign(buffer2, temp);
 };
+
+export interface BufferContainer {
+  updatePositionVA: WebGLVertexArrayObject;
+  pointsTF: WebGLTransformFeedback;
+  linesTex: WebGLTexture;
+  linesFB: WebGLFramebuffer;
+  closestLinesVA: WebGLVertexArrayObject;
+  allLinesTex: WebGLTexture;
+  drawPointsVA: WebGLVertexArrayObject;
+}
