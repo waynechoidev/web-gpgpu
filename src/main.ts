@@ -73,32 +73,32 @@ function main() {
   const { tex: lineVelocitiesTex, dimensions: lineVelocitiesTexDimensions } =
     engine.createDataTexture(lineVelocities, 2, gl.RG32F, gl.RG, gl.FLOAT);
 
-  const updatePositionPrg = new UpdatePosition(gl);
-  const updateLinesPrg = new UpdateLines(gl);
-  const closestLinePrg = new ClosestLine(gl);
-  const drawLinesPrg = new DrawLines(gl);
-  const drawClosestLinesPrg = new DrawClosestLines(gl);
-  const drawPointsPrg = new DrawPoints(gl);
+  const updatePositionPrg = new UpdatePosition(engine);
+  updatePositionPrg.VA = [
+    engine.makeVertexArray([
+      [pointsBuffer1!, updatePositionPrg.oldPosition],
+      [pointVelocitiesBuffer!, updatePositionPrg.velocity],
+    ]),
+    engine.makeVertexArray([
+      [pointsBuffer2!, updatePositionPrg.oldPosition],
+      [pointVelocitiesBuffer!, updatePositionPrg.velocity],
+    ]),
+  ];
 
-  const updatePositionVA1 = engine.makeVertexArray([
-    [pointsBuffer1!, updatePositionPrg.oldPosition],
-    [pointVelocitiesBuffer!, updatePositionPrg.velocity],
-  ]);
-  const updatePositionVA2 = engine.makeVertexArray([
-    [pointsBuffer2!, updatePositionPrg.oldPosition],
-    [pointVelocitiesBuffer!, updatePositionPrg.velocity],
-  ]);
+  const updateLinesPrg = new UpdateLines(engine);
+  updateLinesPrg.VA = [
+    engine.makeVertexArray([[quadBuffer!, updateLinesPrg.position]]),
+  ];
 
-  const updateLinesVA = engine.makeVertexArray([
-    [quadBuffer!, updateLinesPrg.position],
-  ]);
+  const closestLinePrg = new ClosestLine(engine);
+  closestLinePrg.VA = [
+    engine.makeVertexArray([[pointsBuffer1!, closestLinePrg.point]]),
+    engine.makeVertexArray([[pointsBuffer2!, closestLinePrg.point]]),
+  ];
 
-  const closestLinesVA1 = engine.makeVertexArray([
-    [pointsBuffer1!, closestLinePrg.point],
-  ]);
-  const closestLinesVA2 = engine.makeVertexArray([
-    [pointsBuffer2!, closestLinePrg.point],
-  ]);
+  const drawLinesPrg = new DrawLines(engine);
+  const drawClosestLinesPrg = new DrawClosestLines(engine);
+  const drawPointsPrg = new DrawPoints(engine);
 
   const drawClosestLinesVA = gl.createVertexArray();
   gl.bindVertexArray(drawClosestLinesVA);
@@ -124,13 +124,13 @@ function main() {
 
   let current = {
     // for updating points
-    updatePositionVA: updatePositionVA1, // read from points1
+    updatePositionVA: updatePositionPrg.VA[0], // read from points1
     pointsTF: pointsTF2, // write to points2
     // for updating line endings
     linesTex: linesTex1, // read from linesTex1
     linesFB: linesFB2, // write to linesTex2
     // for computing closest lines
-    closestLinesVA: closestLinesVA2, // read from points2
+    closestLinesVA: closestLinePrg.VA[0], // read from points2
     // for drawing all lines and closest lines
     allLinesTex: linesTex2, // read from linesTex2
     // for drawing points
@@ -139,13 +139,13 @@ function main() {
 
   let next = {
     // for updating points
-    updatePositionVA: updatePositionVA2, // read from points2
+    updatePositionVA: updatePositionPrg.VA[1], // read from points2
     pointsTF: pointsTF1, // write to points1
     // for updating line endings
     linesTex: linesTex2, // read from linesTex2
     linesFB: linesFB1, // write to linesTex1
     // for computing closest lines
-    closestLinesVA: closestLinesVA1, // read from points1
+    closestLinesVA: closestLinePrg.VA[1], // read from points1
     // for drawing all lines and closest lines
     allLinesTex: linesTex1, // read from linesTex1
     // for drawing points
@@ -173,7 +173,7 @@ function main() {
 
   function updateLineEndPoints(deltaTime: number) {
     // Update the line endpoint positions ---------------------
-    gl.bindVertexArray(updateLinesVA); // just a quad
+    gl.bindVertexArray(updateLinesPrg.VA[0]); // just a quad
     updateLinesPrg.use();
 
     // bind texture to texture units 0 and 1
@@ -268,8 +268,6 @@ function main() {
     const deltaTime = time - then;
     // Remember the current time for the next frame.
     then = time;
-
-    engine.resizeCanvasToDisplaySize(gl.canvas as HTMLCanvasElement);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
 

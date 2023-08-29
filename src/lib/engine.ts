@@ -31,7 +31,7 @@ export class Engine {
         0 // offset
       );
     }
-    return va;
+    return va!;
   }
 
   makeTransformFeedback(buffer: WebGLBuffer) {
@@ -132,7 +132,7 @@ export class Engine {
     gl.enable(gl.CULL_FACE);
   }
 
-  resizeCanvasToDisplaySize(canvas: HTMLCanvasElement, multiplier = 1) {
+  private resizeCanvasToDisplaySize(canvas: HTMLCanvasElement, multiplier = 1) {
     const width = (canvas.clientWidth * multiplier) | 0;
     const height = (canvas.clientHeight * multiplier) | 0;
     if (canvas.width !== width || canvas.height !== height) {

@@ -1,3 +1,4 @@
+import { Engine } from "../lib/engine";
 import { Program } from "../lib/program";
 import { closestLineFS, closestLineVS } from "../shader/compute-closest-line";
 
@@ -6,8 +7,8 @@ export class ClosestLine extends Program {
   private _linesTex: WebGLUniformLocation;
   private _numLineSegments: WebGLUniformLocation;
 
-  constructor(gl: WebGL2RenderingContext) {
-    super(gl, closestLineVS, closestLineFS, ["closestNdx"]);
+  constructor(engine: Engine) {
+    super(engine, closestLineVS, closestLineFS, ["closestNdx"]);
 
     this._point = this.addAttrib("point");
     this._linesTex = this.addUniform("linesTex");

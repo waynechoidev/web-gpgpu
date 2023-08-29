@@ -1,3 +1,4 @@
+import { Engine } from "../lib/engine";
 import { Program } from "../lib/program";
 import { updateLinesFS, updateLinesVS } from "../shader/update-lines";
 
@@ -8,8 +9,8 @@ export class UpdateLines extends Program {
   private _canvasDimensions: WebGLUniformLocation;
   private _deltaTime: WebGLUniformLocation;
 
-  constructor(gl: WebGL2RenderingContext) {
-    super(gl, updateLinesVS, updateLinesFS);
+  constructor(engine: Engine) {
+    super(engine, updateLinesVS, updateLinesFS);
 
     this._position = this.addAttrib("position");
     this._linesTex = this.addUniform("linesTex");

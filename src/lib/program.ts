@@ -1,14 +1,17 @@
+import { Engine } from "./engine";
+
 export class Program {
-  private _gl: WebGL2RenderingContext;
+  protected _engine: Engine;
   private _program: WebGLProgram;
+  private _VA: WebGLVertexArrayObject[] = [];
 
   constructor(
-    gl: WebGL2RenderingContext,
+    engine: Engine,
     vertexShaderSource: string,
     fragmentShaderSource: string,
     varyings?: string[]
   ) {
-    this._gl = gl;
+    this._engine = engine;
     this._program = this.createProgram(
       vertexShaderSource,
       fragmentShaderSource,
@@ -16,16 +19,23 @@ export class Program {
     );
   }
 
+  get VA() {
+    return this._VA;
+  }
+  set VA(VAs: WebGLVertexArrayObject[]) {
+    this._VA = VAs;
+  }
+
   addAttrib(name: string) {
-    return this._gl.getAttribLocation(this._program, name);
+    return this._engine.gl.getAttribLocation(this._program, name);
   }
 
   addUniform(name: string) {
-    return this._gl.getUniformLocation(this._program, name)!;
+    return this._engine.gl.getUniformLocation(this._program, name)!;
   }
 
   use() {
-    this._gl.useProgram(this._program);
+    this._engine.gl.useProgram(this._program);
   }
 
   // Private Methods
@@ -34,40 +44,38 @@ export class Program {
     fragmentShaderSource: string,
     varyings?: string[]
   ) {
-    const program = this._gl.createProgram() as WebGLProgram;
+    const gl = this._engine.gl;
+
+    const program = gl.createProgram() as WebGLProgram;
     if (!program) console.error(`failed to creat a program.`);
 
     const vertexShader = this.createShader(
-      this._gl.VERTEX_SHADER,
+      gl.VERTEX_SHADER,
       vertexShaderSource
     );
     const fragmentShader = this.createShader(
-      this._gl.FRAGMENT_SHADER,
+      gl.FRAGMENT_SHADER,
       fragmentShaderSource
     );
 
-    this._gl.attachShader(program, vertexShader!);
-    this._gl.attachShader(program, fragmentShader!);
+    gl.attachShader(program, vertexShader!);
+    gl.attachShader(program, fragmentShader!);
 
     if (varyings)
-      this._gl.transformFeedbackVaryings(
-        program,
-        varyings,
-        this._gl.SEPARATE_ATTRIBS
-      );
+      gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
 
-    this._gl.linkProgram(program);
+    gl.linkProgram(program);
 
-    const success = this._gl.getProgramParameter(program, this._gl.LINK_STATUS);
+    const success = gl.getProgramParameter(program, gl.LINK_STATUS);
     if (!success) {
-      console.error(this._gl.getProgramInfoLog(program));
-      this._gl.deleteProgram(program);
+      console.error(gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
     }
     return program;
   }
 
   private createShader(type: number, source: string) {
-    const gl = this._gl;
+    const gl = this._engine.gl;
 
     const shader = gl.createShader(type);
     if (shader) {
