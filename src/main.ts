@@ -1,7 +1,7 @@
 import { Engine } from "./lib/engine";
 import "./style.css";
 import { ClosestLine } from "./program/closest-line";
-import { createPoints, orthographic } from "./lib/utils";
+import { createPoints, orthographic, swapBuffers } from "./lib/utils";
 import { DrawLines } from "./program/draw-lines";
 import { DrawClosestLines } from "./program/draw-closest-line";
 import { DrawPoints } from "./program/draw-points";
@@ -56,10 +56,20 @@ function main() {
     gl.STATIC_DRAW
   );
 
-  const { tex: linesTex1, dimensions: linesTexDimensions1 } =
-    engine.createDataTexture(lines, 2, gl.RG32F, gl.RG, gl.FLOAT);
-  const { tex: linesTex2, dimensions: linesTexDimensions2 } =
-    engine.createDataTexture(lines, 2, gl.RG32F, gl.RG, gl.FLOAT);
+  const { tex: linesTex1 } = engine.createDataTexture(
+    lines,
+    2,
+    gl.RG32F,
+    gl.RG,
+    gl.FLOAT
+  );
+  const { tex: linesTex2 } = engine.createDataTexture(
+    lines,
+    2,
+    gl.RG32F,
+    gl.RG,
+    gl.FLOAT
+  );
   const { tex: lineVelocitiesTex, dimensions: lineVelocitiesTexDimensions } =
     engine.createDataTexture(lineVelocities, 2, gl.RG32F, gl.RG, gl.FLOAT);
 
@@ -273,12 +283,7 @@ function main() {
     drawClosestLines(matrix);
     drawPoints(matrix);
 
-    // swap
-    {
-      const temp = current;
-      current = next;
-      next = temp;
-    }
+    swapBuffers(current, next);
 
     requestAnimationFrame(render);
   }
