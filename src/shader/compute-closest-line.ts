@@ -48,7 +48,7 @@ export const closestLineVS = `#version 300 es
   `;
 
 export const closestLineFS = `#version 300 es
-precision highp float;
-void main() {
-}
-`;
+  precision highp float;
+  void main() {
+  }
+  `;

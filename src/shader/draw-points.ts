@@ -6,8 +6,6 @@ export const drawPointsVS = `#version 300 es
 
   out vec4 v_color;
 
-  // converts hue, saturation, and value each in the 0 to 1 range
-  // to rgb.  c = color, c.x = hue, c.y = saturation, c.z = value
   vec3 hsv2rgb(vec3 c) {
     c = vec3(c.x, clamp(c.yz, 0.0, 1.0));
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);

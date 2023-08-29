@@ -86,6 +86,41 @@ export class Engine {
     return { tex, dimensions: [width, height] };
   }
 
+  createFramebuffer(tex: WebGLTexture) {
+    const gl = this._gl;
+
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      tex,
+      0
+    );
+    return fb;
+  }
+
+  drawArraysWithTransformFeedback(
+    tf: WebGLTransformFeedback,
+    primitiveType: number,
+    count: number
+  ) {
+    const gl = this._gl;
+
+    // turn of using the fragment shader
+    gl.enable(gl.RASTERIZER_DISCARD);
+
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
+    gl.beginTransformFeedback(gl.POINTS);
+    gl.drawArrays(primitiveType, 0, count);
+    gl.endTransformFeedback();
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+    // turn on using fragment shaders again
+    gl.disable(gl.RASTERIZER_DISCARD);
+  }
+
   private createWindow() {
     const gl = this._gl;
     this.resizeCanvasToDisplaySize(gl.canvas as HTMLCanvasElement);
@@ -97,7 +132,7 @@ export class Engine {
     gl.enable(gl.CULL_FACE);
   }
 
-  private resizeCanvasToDisplaySize(canvas: HTMLCanvasElement, multiplier = 1) {
+  resizeCanvasToDisplaySize(canvas: HTMLCanvasElement, multiplier = 1) {
     const width = (canvas.clientWidth * multiplier) | 0;
     const height = (canvas.clientHeight * multiplier) | 0;
     if (canvas.width !== width || canvas.height !== height) {

@@ -12,8 +12,6 @@ export const drawClosestLinesVS = `#version 300 es
     return texelFetch(tex, ivec2(x, y), 0);
   }
 
-  // converts hue, saturation, and value each in the 0 to 1 range
-  // to rgb.  c = color, c.x = hue, c.y = saturation, c.z = value
   vec3 hsv2rgb(vec3 c) {
     c = vec3(c.x, clamp(c.yz, 0.0, 1.0));
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -29,7 +27,7 @@ export const drawClosestLinesVS = `#version 300 es
     vec4 position = getAs1D(linesTex, linesTexDimensions, linePointId);
 
     // do the common matrix math
-    gl_Position = matrix * vec4(position.xy, 0, 1);
+    gl_Position = matrix * vec4(position.xy, 0.1, 1);
 
     int pointId = gl_InstanceID;
     float hue = float(pointId) / numPoints;
