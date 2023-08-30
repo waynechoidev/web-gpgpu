@@ -25,17 +25,18 @@ function main() {
   // Buffers
   const closestNdxBuffer = engine.makeBuffer(
     new Float32Array(numPoints),
+    gl.DYNAMIC_DRAW
+  );
+  const pointsBuffer1 = engine.makeBuffer(points, gl.DYNAMIC_DRAW);
+  const pointsBuffer2 = engine.makeBuffer(points, gl.DYNAMIC_DRAW);
+
+  const pointVelocitiesBuffer = engine.makeBuffer(
+    pointVelocities,
     gl.STATIC_DRAW
   );
   const quadBuffer = engine.makeBuffer(
     new Float32Array(quadArr),
     gl.STATIC_DRAW
-  );
-  const pointsBuffer1 = engine.makeBuffer(points, gl.DYNAMIC_DRAW);
-  const pointsBuffer2 = engine.makeBuffer(points, gl.DYNAMIC_DRAW);
-  const pointVelocitiesBuffer = engine.makeBuffer(
-    pointVelocities,
-    gl.DYNAMIC_DRAW
   );
 
   // Textures
